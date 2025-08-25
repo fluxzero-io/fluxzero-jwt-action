@@ -2,14 +2,8 @@ name: "Generate Flux Host JWT"
 description: "Generate a Flux Host JWT to be used for logging into the registry or deploying an application"
 
 inputs:
-  key-id:
-    description: "Key ID from Flux Host API key"
-    required: true
-  private-key:
-    description: "Key from Flux Host API key"
-    required: true
-  user-id:
-    description: "UserId from Flux Host API key"
+  api-key:
+    description: "Flux Host API key"
     required: true
   validity-seconds:
     description: "Token validity in seconds"
@@ -19,6 +13,8 @@ inputs:
 outputs:
   token:
     description: "The generated JWT"
+  userId:
+    description: "The userId of the API key"
 
 runs:
   using: "node20"
