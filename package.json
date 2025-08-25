@@ -1,0 +1,24 @@
+{
+  "name": "generate-jwt-action",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "check": "tsc",
+    "build": "ncc build --minify --license licenses.txt",
+    "ci": "npm run check && npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.8.6",
+    "@vercel/ncc": "^0.38.2",
+    "typescript": "^5.6.3"
+  }
+}

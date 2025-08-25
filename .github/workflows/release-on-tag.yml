@@ -1,0 +1,50 @@
+name: Release on tag
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run ci
+
+      - name: Fail if build changed dist
+        run: |
+          if ! git diff --quiet --exit-code dist; then
+            echo "::error::Rebuild produced changes in 'dist'."
+            echo "Hint: make sure to only tag commits by the Github bot with changes to the dist directory or re-run the latest automatic build"
+            exit 1
+          fi
+
+      - name: Update moving major tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"   # 1.2.3
+          MAJOR="${VERSION%%.*}"           # 1
+          git tag -f "v${MAJOR}" "${GITHUB_REF_NAME}"
+          git push -f origin "v${MAJOR}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
