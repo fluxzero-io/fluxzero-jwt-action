@@ -1,5 +1,8 @@
 name: "Generate Flux Host JWT"
 description: "Generate a Flux Host JWT to be used for logging into the registry or deploying an application"
+branding:
+  icon: unlock
+  color: gray-dark
 
 inputs:
   api-key:
