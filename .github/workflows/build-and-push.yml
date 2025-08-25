@@ -37,10 +37,11 @@ jobs:
       - name: Commit dist directory if changed
         run: |
           set -euo pipefail
-          if ! git diff --quiet --exit-code dist; then
+          git add --intent-to-add -- dist/
+          if ! git diff --quiet dist; then
             git config user.name  "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add dist
+            git add -- dist/
             git commit -m "build: update dist for ${GITHUB_SHA::7} [skip ci]"
             git push
           else
