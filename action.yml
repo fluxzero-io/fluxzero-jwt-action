@@ -1,5 +1,6 @@
-name: "Generate Flux Host JWT"
+name: "Flux Host JWT"
 description: "Generate a Flux Host JWT to be used for logging into the registry or deploying an application"
+author: flux-capacitor-io
 branding:
   icon: unlock
   color: gray-dark
