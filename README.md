@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Generate Flux Host JWT
         id: jwt
-        uses: ./.github/actions/generate-jwt
+        uses: flux-capacitor-io/flux-host-jwt-action@v1
         with:
           api-key: ${{ secrets.FLUX_HOST_API_KEY }}
 
