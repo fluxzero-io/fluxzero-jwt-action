@@ -33,7 +33,7 @@ jobs:
 ## Inputs
 | Name               | Required | Default | Description               |
 |--------------------|:--------:|:-------:|---------------------------|
-| `api-key`          |   yes    |    —    | Flux Host API key         |
+| `api-key`          |   yes    |    -    | Flux Host API key         |
 | `validity-seconds` |    no    |  `300`  | Token validity in seconds |
 
 ---
@@ -53,5 +53,5 @@ jobs:
 - Use short validity where possible (default 5 minutes).
 - For maximum supply-chain safety, pin this action to a specific commit SHA:  
   ```yaml
-  uses: flux-capacitor-io/generate-jwt-action@<commit-sha>
+  uses: flux-capacitor-io/flux-host-jwt-action@<commit-sha>
   ```
