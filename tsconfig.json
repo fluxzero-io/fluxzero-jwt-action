@@ -2,7 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "noEmit": true,
-    "target": "ESNext",
+    "target": "ES2024",
     "module": "CommonJS",
     "moduleResolution": "Node",
     "esModuleInterop": true,

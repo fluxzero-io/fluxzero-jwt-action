@@ -1,13 +1,13 @@
-name: "Flux Host JWT"
-description: "Generate a Flux Host JWT to be used for logging into the registry or deploying an application"
-author: flux-capacitor-io
+name: "Fluxzero JWT"
+description: "Generate a Fluxzero JWT to be used for logging into the registry or deploying an application"
+author: fluxzero-io
 branding:
   icon: unlock
   color: gray-dark
 
 inputs:
   api-key:
-    description: "Flux Host API key"
+    description: "Fluxzero API key"
     required: true
   validity-seconds:
     description: "Token validity in seconds"
