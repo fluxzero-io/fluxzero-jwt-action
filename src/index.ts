@@ -16,7 +16,6 @@ async function run() {
 
     const payload = {
         sub: apiKey.userId,
-        iss: "https://flux.host",
         exp: Math.floor(Date.now() / 1000) + (validitySeconds),
         iat: Math.floor(Date.now() / 1000)
     };
