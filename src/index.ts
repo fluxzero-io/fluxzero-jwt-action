@@ -7,7 +7,6 @@ interface ExchangeTokenResponse {
     registryToken: string;
     deployToken: string;
     registryHost: string;
-    deploymentTargets: { clusterName: string; applicationName: string; imageName: string }[];
 }
 
 async function run() {
@@ -27,13 +26,14 @@ async function run() {
 
 async function runOidcMode() {
     const fluxzeroHost = core.getInput('fluxzero-host', {required: true});
+    const imageName = core.getInput('image-name', {required: true});
     const audience = 'https://cloud.fluxzero.io';
     const oidcToken = await core.getIDToken(audience);
 
     const httpClient = new HttpClient('fluxzero-jwt-action');
     const response = await httpClient.post(
         `${fluxzeroHost}/api/github/exchange-token`,
-        JSON.stringify({oidcToken}),
+        JSON.stringify({oidcToken, imageName}),
         {'Content-Type': 'application/json'}
     );
 

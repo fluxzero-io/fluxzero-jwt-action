@@ -17,6 +17,9 @@ inputs:
     description: "Fluxzero API host (required in oidc mode)"
     required: false
     default: "https://api.dashboard.fluxzero.io"
+  image-name:
+    description: "Docker image name to push (required in oidc mode)"
+    required: false
   validity-seconds:
     description: "Token validity in seconds (token mode only)"
     required: false
