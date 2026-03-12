@@ -1,8 +1,69 @@
 import * as core from '@actions/core';
 import * as jwt from 'jsonwebtoken';
+import {HttpClient} from '@actions/http-client';
 import {ApiKeyResult} from "./ApiKeyResult";
 
+interface ExchangeTokenResponse {
+    registryToken: string;
+    deployToken: string;
+    registryHost: string;
+    deploymentTargets: { clusterName: string; applicationName: string; imageName: string }[];
+}
+
 async function run() {
+    const mode = core.getInput('mode') || 'token';
+
+    switch (mode) {
+        case 'oidc':
+            await runOidcMode();
+            break;
+        case 'token':
+            await runApiKeyMode();
+            break;
+        default:
+            throw new Error(`Unknown mode: '${mode}'. Must be 'token' or 'oidc'.`);
+    }
+}
+
+async function runOidcMode() {
+    const fluxzeroHost = core.getInput('fluxzero-host', {required: true});
+    const audience = 'https://cloud.fluxzero.io';
+    const oidcToken = await core.getIDToken(audience);
+
+    const httpClient = new HttpClient('fluxzero-jwt-action');
+    const response = await httpClient.post(
+        `${fluxzeroHost}/api/github/exchange-token`,
+        JSON.stringify({oidcToken}),
+        {'Content-Type': 'application/json'}
+    );
+
+    const body = await response.readBody();
+    const statusCode = response.message.statusCode;
+    if (typeof statusCode !== 'number' || statusCode < 200 || statusCode >= 300) {
+        throw new Error(`Token exchange failed (${statusCode}): ${body}`);
+    }
+
+    const data: ExchangeTokenResponse = JSON.parse(body);
+
+    // registryToken is Base64(userId:jwt) — decode to extract parts
+    const decoded = Buffer.from(data.registryToken, 'base64').toString();
+    const colonIndex = decoded.indexOf(':');
+    if (colonIndex === -1) {
+        throw new Error('Invalid registryToken format');
+    }
+    const userId = decoded.substring(0, colonIndex);
+    const registryJwt = decoded.substring(colonIndex + 1);
+
+    core.setOutput('token', registryJwt);
+    core.setOutput('userId', userId);
+    core.setOutput('deploy-token', data.deployToken);
+    core.setOutput('registry-host', data.registryHost);
+
+    core.setSecret(registryJwt);
+    core.setSecret(data.deployToken);
+}
+
+async function runApiKeyMode() {
     const apiKey: ApiKeyResult = JSON.parse(core.getInput('api-key', {required: true}));
     core.setSecret(apiKey.key);
 
@@ -25,7 +86,7 @@ async function run() {
     const jwtToken = jwt.sign(payload, formattedKey, {algorithm: 'RS256', header: header});
 
     core.setOutput('token', jwtToken);
-    core.setOutput('userId', apiKey.userId)
+    core.setOutput('userId', apiKey.userId);
 }
 
 run().catch((error: unknown) => {
