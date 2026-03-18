@@ -180,6 +180,8 @@ Add the `local-deploy` label to trigger the workflow.
 | `Error occurred while trying to proxy` (504) | Spring Boot backend not running on port 8080 | Start the backend with `mvn -pl app spring-boot:run` |
 | Docker login hits `registry-1.docker.io` | `docker-registry-public.host` property not set | Add `docker-registry-public.host=registry.fluxzero.io` to `application-local.properties` |
 | OIDC token validation fails | Audience mismatch | Use `audience=https://cloud.fluxzero.io` (the server default), not the tunnel URL |
+| `No team with a repo connection found for repository` | The GitHub repository is not linked to a Fluxzero team | In the Fluxzero dashboard, connect your repository to a team. The OIDC exchange requires a repo connection to determine which team to issue tokens for |
+| `invalid reference format` in Docker build/push | `docker-registry-public.host` includes `https://` | The property must be a bare hostname (e.g. `registry.fluxzero.io`), not a URL |
 
 ---
 
