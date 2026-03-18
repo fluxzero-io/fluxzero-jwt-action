@@ -99,6 +99,90 @@ jobs:
 
 ---
 
+## Testing OIDC mode against a local environment
+
+You can test the OIDC token exchange end-to-end against a locally running `flux-host-service` using the `local-deploy` workflow in `flux-host-service`.
+
+### Prerequisites
+
+- [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) installed
+- `flux-host-service` checked out locally
+- A GitHub App installed on the target org/repo with a repo connection to a Fluxzero team
+
+### 1. Start the backend
+
+Start the Spring Boot backend in `flux-host-service`:
+
+```bash
+mvn -pl app spring-boot:run
+```
+
+Make sure `app/src/main/resources/application-local.properties` has these properties set:
+
+```properties
+feature.github.enabled=true
+github.webhook-secret=<your-webhook-secret>
+github.ci.token-secret=<your-ci-token-secret>
+docker-registry-public.host=registry.fluxzero.io
+```
+
+### 2. Start the Angular dev server
+
+The Angular proxy forwards `/api/*` requests to Spring Boot on port 8080:
+
+```bash
+cd frontend
+ng run flux-host-dashboard:serve-marketplace --disable-host-check
+```
+
+The `--disable-host-check` flag is required because the Cloudflare tunnel sends requests with an external hostname.
+
+### 3. Start a Cloudflare tunnel
+
+Open a tunnel to the Angular dev server (default port 4200):
+
+```bash
+cloudflared tunnel --url http://localhost:4200
+```
+
+This gives you a temporary public URL like `https://<random>.trycloudflare.com`. These URLs are ephemeral — you get a new one each time you restart the tunnel.
+
+> **Tip:** add `--loglevel debug` to see every request passing through the tunnel.
+
+### 4. Create a PR with the `local-deploy` label
+
+The `local-deploy` workflow in `flux-host-service` triggers on PRs with the `local-deploy` label. The PR body must contain two tags that configure the target environment:
+
+```
+[audience=https://cloud.fluxzero.io]
+[baseurl=https://<your-tunnel>.trycloudflare.com]
+```
+
+- **`audience`** — the OIDC audience claim. Must match what the server expects (default: `https://cloud.fluxzero.io`). This is **not** the tunnel URL.
+- **`baseurl`** — the tunnel URL. Used as the `fluxzero-host` for the token exchange and as the base for the deploy endpoint.
+
+Add the `local-deploy` label to trigger the workflow.
+
+### 5. What the workflow does
+
+1. Parses `audience` and `baseurl` from the PR body
+2. Requests a GitHub OIDC token with the configured audience
+3. Exchanges it with the Fluxzero backend at `<baseurl>/api/github/exchange-token`
+4. Verifies Docker registry login with the returned credentials
+5. Deploys using `fluxzero-deploy-action` at `<baseurl>/deploy-application`
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `Token exchange failed (403)` with empty body | Cloudflare tunnel is down or URL changed | Restart `cloudflared`, update `[baseurl=...]` in PR body |
+| `Invalid Host header` | Angular dev server rejecting the tunnel hostname | Restart `ng serve` with `--disable-host-check` |
+| `Error occurred while trying to proxy` (504) | Spring Boot backend not running on port 8080 | Start the backend with `mvn -pl app spring-boot:run` |
+| Docker login hits `registry-1.docker.io` | `docker-registry-public.host` property not set | Add `docker-registry-public.host=registry.fluxzero.io` to `application-local.properties` |
+| OIDC token validation fails | Audience mismatch | Use `audience=https://cloud.fluxzero.io` (the server default), not the tunnel URL |
+
+---
+
 ## Security notes
 
 - All secrets and tokens are masked in workflow logs.
