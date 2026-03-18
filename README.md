@@ -182,6 +182,7 @@ Add the `local-deploy` label to trigger the workflow.
 | OIDC token validation fails | Audience mismatch | Use `audience=https://cloud.fluxzero.io` (the server default), not the tunnel URL |
 | `No team with a repo connection found for repository` | The GitHub repository is not linked to a Fluxzero team | In the Fluxzero dashboard, connect your repository to a team. The OIDC exchange requires a repo connection to determine which team to issue tokens for |
 | `invalid reference format` in Docker build/push | `docker-registry-public.host` includes `https://` | The property must be a bare hostname (e.g. `registry.fluxzero.io`), not a URL |
+| `No Fluxzero installation found for GitHub account` after server restart | Local database was reset — all GitHub connections are lost | Re-run the GitHub App connection flow in the dashboard and re-link your repository to a team |
 
 ---
 
