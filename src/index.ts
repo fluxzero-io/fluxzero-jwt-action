@@ -27,7 +27,7 @@ async function run() {
 async function runOidcMode() {
     const fluxzeroHost = core.getInput('fluxzero-host', {required: true});
     const imageName = core.getInput('image-name', {required: true});
-    const audience = 'https://cloud.fluxzero.io';
+    const audience = core.getInput('audience', {required: true});
     const oidcToken = await core.getIDToken(audience);
 
     const httpClient = new HttpClient('fluxzero-jwt-action');

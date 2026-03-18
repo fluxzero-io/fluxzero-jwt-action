@@ -17,6 +17,10 @@ inputs:
     description: "Fluxzero API host (required in oidc mode)"
     required: false
     default: "https://api.dashboard.fluxzero.io"
+  audience:
+    description: "OIDC audience claim (oidc mode only)"
+    required: false
+    default: "https://cloud.fluxzero.io"
   image-name:
     description: "Docker image name to push (required in oidc mode)"
     required: false

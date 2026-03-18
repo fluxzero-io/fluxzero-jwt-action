@@ -81,7 +81,9 @@ jobs:
 |--------------------|:--------:|:------------------------------------:|--------------------------------------------------------------|
 | `mode`             |    no    | `token`                              | `token` (API key) or `oidc` (GitHub OIDC token exchange)     |
 | `api-key`          |    no    |                -                     | Fluxzero System API key (required in `token` mode)           |
-| `fluxzero-host`    |    no    | `https://api.dashboard.fluxzero.io`  | Fluxzero API host (used in `oidc` mode)                      |
+| `fluxzero-host`    |    no    | `https://api.dashboard.fluxzero.io`  | Fluxzero API host (`oidc` mode)                              |
+| `audience`         |    no    | `https://cloud.fluxzero.io`          | OIDC audience claim (`oidc` mode)                            |
+| `image-name`       |    no    |                -                     | Docker image name to push (required in `oidc` mode)          |
 | `validity-seconds` |    no    | `300`                                | Token validity in seconds (`token` mode only)                |
 
 ---
