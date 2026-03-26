@@ -1,24 +1,43 @@
 name: "Fluxzero JWT"
-description: "Generate a Fluxzero JWT to be used for logging into the registry or deploying an application"
+description: "Generate a Fluxzero JWT to be used for logging into the registry or deploying an application. Supports API key mode (token) and OIDC mode (for GitHub Actions without stored secrets)."
 author: fluxzero-io
 branding:
   icon: unlock
   color: gray-dark
 
 inputs:
+  mode:
+    description: "Authentication mode: 'token' (API key) or 'oidc' (GitHub OIDC token exchange)"
+    required: false
+    default: "token"
   api-key:
-    description: "Fluxzero API key"
-    required: true
+    description: "Fluxzero API key (required in token mode)"
+    required: false
+  fluxzero-host:
+    description: "Fluxzero API host (required in oidc mode)"
+    required: false
+    default: "https://api.dashboard.fluxzero.io"
+  audience:
+    description: "OIDC audience claim (oidc mode only)"
+    required: false
+    default: "https://cloud.fluxzero.io"
+  image-name:
+    description: "Docker image name to push (required in oidc mode)"
+    required: false
   validity-seconds:
-    description: "Token validity in seconds"
+    description: "Token validity in seconds (token mode only)"
     required: false
     default: "300"
 
 outputs:
   token:
-    description: "The generated JWT"
+    description: "JWT for registry auth"
   userId:
-    description: "The userId of the API key"
+    description: "The userId"
+  deploy-token:
+    description: "Deploy token (OIDC mode only)"
+  registry-host:
+    description: "Registry host for docker login (OIDC mode only)"
 
 runs:
   using: "node20"
