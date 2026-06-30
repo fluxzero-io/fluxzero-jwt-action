@@ -31,6 +31,7 @@ jobs:
         uses: fluxzero-io/fluxzero-jwt-action@v2
         with:
           mode: oidc
+          image-name: my-app
 
       - name: Log in to Fluxzero Container Registry
         run: |
