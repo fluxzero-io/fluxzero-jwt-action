@@ -24,7 +24,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@types/jsonwebtoken": "^9.0.7",
-    "@types/node": "^24.13.2",
+    "@types/node": "^26.4.0",
     "@vercel/ncc": "^0.38.2",
     "eslint": "^9.39.4",
     "globals": "^16.5.0",
