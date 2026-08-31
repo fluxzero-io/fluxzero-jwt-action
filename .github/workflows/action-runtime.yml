@@ -1,0 +1,77 @@
+name: Action runtime
+
+on:
+  pull_request:
+  push:
+    branches: ['**']
+    tags-ignore: ['**']
+    paths-ignore:
+      - 'dist/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  token-mode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install, test, and rebuild
+        run: |
+          npm ci
+          npm run lint
+          npm run ci
+
+      - name: Verify committed action distribution
+        run: git diff --quiet --exit-code -- dist
+
+      - name: Create ephemeral API key
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          private_key_path="${RUNNER_TEMP}/jwt-action-test-private.pem"
+          public_key_path="${RUNNER_TEMP}/jwt-action-test-public.pem"
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+            > "${private_key_path}" 2>/dev/null
+          openssl pkey -in "${private_key_path}" -pubout \
+            > "${public_key_path}" 2>/dev/null
+          private_key="$(openssl pkcs8 -topk8 -nocrypt -in "${private_key_path}" \
+            -outform DER 2>/dev/null | base64 | tr -d '\n')"
+          api_key="$(jq -cn \
+            --arg userId 'jwt-action-workflow-user' \
+            --arg keyId 'jwt-action-workflow-key' \
+            --arg key "${private_key}" \
+            --arg issuedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            '{userId: $userId, keyId: $keyId, key: $key, issuedAt: $issuedAt}')"
+          echo "::add-mask::${private_key}"
+          echo "::add-mask::${api_key}"
+          {
+            echo "TEST_API_KEY=${api_key}"
+            echo "JWT_PUBLIC_KEY_PATH=${public_key_path}"
+            echo "JWT_EARLIEST_ISSUED_AT=$(date +%s)"
+          } >> "${GITHUB_ENV}"
+
+      - name: Generate JWT with the checked-out action
+        id: jwt
+        uses: ./
+        with:
+          mode: token
+          api-key: ${{ env.TEST_API_KEY }}
+          validity-seconds: 120
+
+      - name: Verify JWT without disclosing credentials
+        env:
+          JWT_TOKEN: ${{ steps.jwt.outputs.token }}
+          JWT_EXPECTED_USER_ID: jwt-action-workflow-user
+          JWT_EXPECTED_KEY_ID: jwt-action-workflow-key
+          JWT_VALIDITY_SECONDS: 120
+        run: node test/verify-action-token.mjs

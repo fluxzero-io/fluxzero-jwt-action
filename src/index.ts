@@ -81,6 +81,7 @@ async function runApiKeyMode() {
 
     const jwtToken = jwt.sign(payload, formattedKey, {algorithm: 'RS256', header: header});
 
+    core.setSecret(jwtToken);
     core.setOutput('token', jwtToken);
     core.setOutput('userId', apiKey.userId);
 }
