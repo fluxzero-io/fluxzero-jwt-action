@@ -2,7 +2,7 @@
 
 # Fluxzero JWT Action
 
-Connect your GitHub Actions workflow to [Fluxzero Cloud](https://fluxzero.io) for registry access and application deployments. This action provides short-lived credentials for the Fluxzero System API.
+Authenticate GitHub Actions with [Fluxzero](https://fluxzero.io) for registry access and application deployments.
 
 [Get started](https://fluxzero.io/get-started) · [How it works](https://fluxzero.io/how-it-works) · [Docs](https://fluxzero.io/docs)
 
