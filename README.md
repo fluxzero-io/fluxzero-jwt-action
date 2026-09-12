@@ -1,9 +1,15 @@
+<a href="https://fluxzero.io"><img src="https://raw.githubusercontent.com/fluxzero-io/.github/main/assets/brand/2026-09/repository-header.svg" alt="Fluxzero — The European cloud for AI-built apps" width="1280"></a>
+
 # Fluxzero JWT Action
+
+Connect your GitHub Actions workflow to [Fluxzero Cloud](https://fluxzero.io) for registry access and application deployments. This action provides short-lived credentials for the Fluxzero System API.
+
+[Get started](https://fluxzero.io/get-started) · [How it works](https://fluxzero.io/how-it-works) · [Docs](https://fluxzero.io/docs)
 
 [![GitHub release](https://img.shields.io/github/v/release/fluxzero-io/fluxzero-jwt-action?display_name=tag&sort=semver)](https://github.com/fluxzero-io/fluxzero-jwt-action/releases)
 [![GitHub Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-Use%20this%20Action-2ea44f)](https://github.com/marketplace/actions/fluxzero-jwt)
 
-This action generates a short-lived JWT for authenticating against the **Fluxzero System API**. It supports two modes:
+It supports two modes:
 
 - **Token mode** (default): uses a stored API key secret to generate a JWT locally.
 - **OIDC mode**: exchanges a GitHub OIDC token with Fluxzero for registry and deploy credentials — no stored secrets needed.

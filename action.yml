@@ -1,9 +1,9 @@
 name: "Fluxzero JWT"
-description: "Generate a Fluxzero JWT for registry auth and deployments using API key or OIDC mode."
+description: "Authenticate with Fluxzero Cloud for registry access and deployments using API key or OIDC mode."
 author: fluxzero-io
 branding:
   icon: unlock
-  color: gray-dark
+  color: blue
 
 inputs:
   mode:
