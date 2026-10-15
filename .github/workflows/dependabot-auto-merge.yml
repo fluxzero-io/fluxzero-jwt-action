@@ -153,4 +153,22 @@ jobs:
           # The App, rather than GITHUB_TOKEN, makes the eventual merge. Its push
           # reruns full PR CI on any generated commit. Only a reproducible committed
           # distribution passes the required gate; the App has no bypass.
-          gh pr merge "$PR_URL" --auto --rebase --match-head-commit "$PR_HEAD_SHA"
+          # Git ref writes can precede GraphQL's view of the new PR head.
+          # Retain the exact-head guard and retry only that propagation error.
+          for attempt in {1..15}; do
+            observed_head="$(gh pr view "$PR_URL" --json headRefOid --jq .headRefOid)"
+            if [[ "$observed_head" == "$PR_HEAD_SHA" ]]; then
+              if result="$(gh pr merge "$PR_URL" --auto --rebase --match-head-commit "$PR_HEAD_SHA" 2>&1)"; then
+                printf '%s\n' "$result"
+                exit 0
+              fi
+              if [[ "$result" != *'expected head oid does not match'* ]]; then
+                printf '%s\n' "$result" >&2
+                exit 1
+              fi
+            fi
+            echo "Waiting for GitHub's expected-head confirmation ($attempt/15)."
+            sleep 2
+          done
+          echo '::error::GitHub did not confirm the expected PR head before the deadline.'
+          exit 1
