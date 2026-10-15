@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-10-15
+
+### Fixed
+- Update bundled Undici to 6.29.1, including the upstream security fixes.
+- Mask the generated API-key JWT before writing the action output.
+
+### Changed
+- Refresh the build tooling and the reproducible action distribution.
+- Require complete verification and a matching committed bundle before dependency merges.
+- Preserve the existing token/OIDC inputs, outputs and node24 action runtime.
+
 ## [2.3.0] - 2026-08-17
 
 ### Changed
