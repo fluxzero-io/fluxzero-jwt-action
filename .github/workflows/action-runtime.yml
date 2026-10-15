@@ -1,12 +1,14 @@
 name: Action runtime
 
 on:
-  pull_request:
-  push:
-    branches: ['**']
-    tags-ignore: ['**']
-    paths-ignore:
-      - 'dist/**'
+  workflow_call:
+    inputs:
+      check-dist:
+        type: boolean
+        default: true
+    outputs:
+      distribution-clean:
+        value: ${{ jobs.token-mode.outputs.distribution-clean }}
   workflow_dispatch:
 
 permissions:
@@ -16,10 +18,12 @@ jobs:
   token-mode:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      distribution-clean: ${{ steps.distribution.outputs.clean }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
           cache: npm
@@ -31,7 +35,19 @@ jobs:
           npm run ci
 
       - name: Verify committed action distribution
-        run: git diff --quiet --exit-code -- dist
+        id: distribution
+        env:
+          REQUIRE_COMMITTED_DIST: ${{ inputs.check-dist || github.event_name == 'workflow_dispatch' }}
+        run: |
+          if git diff --quiet --exit-code -- dist; then
+            echo 'clean=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'clean=false' >> "$GITHUB_OUTPUT"
+            if [[ "$REQUIRE_COMMITTED_DIST" == true ]]; then
+              echo '::error::Rebuild and commit the action distribution.'
+              exit 1
+            fi
+          fi
 
       - name: Create ephemeral API key
         shell: bash
@@ -75,3 +91,14 @@ jobs:
           JWT_EXPECTED_KEY_ID: jwt-action-workflow-key
           JWT_VALIDITY_SECONDS: 120
         run: node test/verify-action-token.mjs
+
+      - name: Retain the tested distribution for a native Dependabot PR
+        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: jwt-action-distribution-${{ github.sha }}
+          path: |
+            dist/index.js
+            dist/licenses.txt
+          retention-days: 1
+          if-no-files-found: error

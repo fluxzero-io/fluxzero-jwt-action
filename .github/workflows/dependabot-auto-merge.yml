@@ -1,0 +1,156 @@
+name: Dependabot Auto-Merge
+
+on:
+  workflow_call:
+
+concurrency:
+  group: dependabot-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+
+jobs:
+  auto-merge:
+    name: Enable Dependabot auto-merge
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The caller requires the complete build matrix and real action runtime.
+      # This workflow never checks out or executes pull-request code.
+      # The merge App credentials come from the existing Dependabot secrets.
+      - name: Fetch verified Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ github.token }}
+
+      - name: Require the merge App configuration
+        env:
+          APP_CLIENT_ID: ${{ secrets.DEPENDABOT_AUTOMERGE_APP_CLIENT_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.DEPENDABOT_AUTOMERGE_APP_PRIVATE_KEY }}
+        run: |
+          test -n "$APP_CLIENT_ID" && test -n "$APP_PRIVATE_KEY" || {
+            echo '::error::Configure the existing Dependabot Automerge App for this repository.'
+            exit 1
+          }
+
+      - name: Create bounded merge App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.DEPENDABOT_AUTOMERGE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEPENDABOT_AUTOMERGE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Require a routine update and strict CI before writing
+        id: policy
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          READ_TOKEN: ${{ github.token }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          REQUIRED_CHECKS: '["JWT Action required checks"]'
+        run: |
+          set -euo pipefail
+          case "$UPDATE_TYPE" in
+            version-update:semver-patch|version-update:semver-minor) ;;
+            *)
+              auto_merge="$(gh pr view "$PR_URL" --json autoMergeRequest --jq '.autoMergeRequest != null')"
+              if [[ "$auto_merge" == true ]]; then
+                gh pr merge "$PR_URL" --disable-auto
+              fi
+              echo "Leaving $UPDATE_TYPE for separate assessment."
+              exit 0
+              ;;
+          esac
+
+          # Refuse immediate merging when the required-check ruleset is absent.
+          rules="$(GH_TOKEN="$READ_TOKEN" gh api "repos/${GITHUB_REPOSITORY}/rules/branches/${BASE_REF}")"
+          jq -e --argjson required "$REQUIRED_CHECKS" '
+            [ .[] | select(.type == "required_status_checks" and .parameters.strict_required_status_checks_policy == true)
+              | .parameters.required_status_checks[] | select(.integration_id == 15368) | .context ] as $configured
+            | ($required | length > 0) and all($required[]; . as $check | $configured | index($check) != null)
+          ' <<< "$rules" > /dev/null || {
+            echo '::error::Activate the matching required CI ruleset before enabling dependency merges.'
+            exit 1
+          }
+
+          echo 'allowed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Download the tested bundle from this workflow run
+        if: steps.policy.outputs.allowed == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: jwt-action-distribution-${{ github.sha }}
+          path: ${{ runner.temp }}/jwt-action-dist
+
+      - name: Commit only the tested distribution to the unchanged bot branch
+        if: steps.policy.outputs.allowed == 'true'
+        id: distribution
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          BUNDLE_DIRECTORY: ${{ runner.temp }}/jwt-action-dist
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const fs = require('node:fs/promises');
+            const path = require('node:path');
+            const repository = context.repo;
+            const expected = context.payload.pull_request;
+            const {data: pr} = await github.rest.pulls.get({...repository, pull_number: expected.number});
+            if (pr.user.login !== 'dependabot[bot]' || pr.head.repo.full_name !== `${repository.owner}/${repository.repo}` ||
+                pr.head.sha !== expected.head.sha || pr.head.ref !== expected.head.ref || pr.base.ref !== 'main' ||
+                pr.draft || pr.state !== 'open') {
+              throw new Error('The native bot PR changed or is outside the qualified scope.');
+            }
+            const {data: parent} = await github.rest.git.getCommit({...repository, commit_sha: pr.head.sha});
+            const {data: current} = await github.rest.git.getTree({...repository, tree_sha: parent.tree.sha, recursive: '1'});
+            if (current.truncated) throw new Error('Refuse an incomplete source tree.');
+            const changes = [];
+            for (const name of ['index.js', 'licenses.txt']) {
+              const content = await fs.readFile(path.join(process.env.BUNDLE_DIRECTORY, name));
+              if (content.length === 0 || content.length > 10 * 1024 * 1024) throw new Error('Invalid bundle size.');
+              const {data: blob} = await github.rest.git.createBlob({...repository, content: content.toString('base64'), encoding: 'base64'});
+              const target = `dist/${name}`;
+              const previous = current.tree.find(entry => entry.path === target);
+              if (previous?.sha !== blob.sha || previous?.mode !== '100644') {
+                changes.push({path: target, mode: '100644', type: 'blob', sha: blob.sha});
+              }
+            }
+            let head = pr.head.sha;
+            if (changes.length) {
+              const {data: tree} = await github.rest.git.createTree({...repository, base_tree: parent.tree.sha, tree: changes});
+              const {data: commit} = await github.rest.git.createCommit({
+                ...repository, tree: tree.sha, parents: [pr.head.sha],
+                message: `build(dist): refresh the action bundle for ${pr.head.sha.slice(0, 7)}`
+              });
+              // A racing head change makes this non-fast-forward update fail.
+              await github.rest.git.updateRef({...repository, ref: `heads/${pr.head.ref}`, sha: commit.sha, force: false});
+              head = commit.sha;
+            }
+            core.setOutput('head-sha', head);
+
+      - name: Queue native auto-merge for the final verified distribution
+        if: steps.policy.outputs.allowed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_HEAD_SHA: ${{ steps.distribution.outputs.head-sha }}
+        run: |
+          set -euo pipefail
+
+          # The App, rather than GITHUB_TOKEN, makes the eventual merge. Its push
+          # reruns full PR CI on any generated commit. Only a reproducible committed
+          # distribution passes the required gate; the App has no bypass.
+          gh pr merge "$PR_URL" --auto --rebase --match-head-commit "$PR_HEAD_SHA"

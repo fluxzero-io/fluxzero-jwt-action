@@ -22,6 +22,9 @@ The bundled action code is kept compatible with Node.js 24 and Node.js 26, but G
 
 Project CI verifies the action code on Node.js 20, Node.js 24, and Node.js 26. Node.js 20 is covered only as a temporary legacy compatibility check; the single bundled `dist` build uses Node.js 26.
 
+See [dependency maintenance](docs/dependency-maintenance.md) for update generation,
+required CI, generated bundles and the explicit tag-based release boundary.
+
 ### GitHub runner defaults and overrides
 
 GitHub-hosted runners began using Node.js 24 by default for JavaScript actions on June 16, 2026. This action declares `runs.using: node24`, so no workflow override is required.

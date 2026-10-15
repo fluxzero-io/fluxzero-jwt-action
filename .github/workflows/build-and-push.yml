@@ -1,26 +1,29 @@
 name: Build and push
 
 on:
+  pull_request:
+    branches: [main]
   push:
-    branches: ['**']
-    tags-ignore: ['**']
+    branches: [main]
     paths-ignore:
       - 'dist/**'
+  workflow_call:
 
 permissions:
-  contents: write
+  contents: read
+  actions: read
+  pull-requests: read
 
 jobs:
   verify:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         node-version: [20, 24, 26]
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -35,40 +38,35 @@ jobs:
       - name: Test
         run: npm test
 
-  build-and-commit:
-    if: github.actor != 'github-actions[bot]'
-    needs: verify
+  runtime:
+    name: Action runtime
+    uses: ./.github/workflows/action-runtime.yml
+    with:
+      # The isolated bot merge job can commit the tested bundle, then queue a
+      # merge only after fresh CI verifies that committed distribution.
+      check-dist: ${{ !(github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]') }}
+
+  gate:
+    name: JWT Action required checks
+    if: always()
+    needs: [verify, runtime]
     runs-on: ubuntu-latest
-    concurrency:
-      group: autobuild-${{ github.ref }}
-      cancel-in-progress: false
-
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+      - name: Require all supported builds and the actual action runtime
+        env:
+          BUILD_RESULT: ${{ needs.verify.result }}
+          RUNTIME_RESULT: ${{ needs.runtime.result }}
+          DISTRIBUTION_CLEAN: ${{ needs.runtime.outputs.distribution-clean }}
+        run: test "$BUILD_RESULT" = success && test "$RUNTIME_RESULT" = success && test "$DISTRIBUTION_CLEAN" = true
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 26
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build TypeScript
-        run: npm run ci
-
-      - name: Commit dist directory if changed
-        run: |
-          set -euo pipefail
-          git add --intent-to-add -- dist/
-          if ! git diff --quiet dist; then
-            git config user.name  "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -- dist/
-            git commit -m "build: update dist for ${GITHUB_SHA::7} [skip ci]"
-            git push
-          else
-            echo "No changes in dist directory"
-          fi
+  auto-merge:
+    name: Merge dependency
+    if: >-
+      always() && needs.verify.result == 'success' && needs.runtime.result == 'success' &&
+      github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
+    needs: [verify, runtime, gate]
+    uses: ./.github/workflows/dependabot-auto-merge.yml
+    secrets: inherit
