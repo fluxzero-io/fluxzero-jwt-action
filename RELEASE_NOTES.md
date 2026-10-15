@@ -1,6 +1,9 @@
-This release moves OIDC mode to Fluxzero's provider-neutral Integration exchange.
+This patch refreshes the bundled dependencies and improves token masking.
 
-- Calls `/api/integrations/exchange-token` instead of the legacy GitHub endpoint.
-- Preserves the existing `token`, `userId`, `deploy-token`, and `registry-host` outputs.
-- Keeps `image-name` as an accepted compatibility input, but no longer requires or sends it.
-- Adds an executable contract test for the bundled action and exchange interface.
+- Updates bundled Undici to 6.29.1, including its upstream security fixes.
+- Masks the generated API-key JWT before writing the action output.
+- Refreshes the build tooling and reproducible distribution.
+- Verifies and commits rebuilt bundles before automatic dependency merges.
+
+The existing token/OIDC inputs and outputs are unchanged. The action continues
+to run on GitHub's `node24` runtime.
