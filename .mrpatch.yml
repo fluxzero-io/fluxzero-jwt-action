@@ -1,0 +1,20 @@
+version: 1
+defaults:
+  schedule:
+    cron: 0 * * * *
+    spread: 55m
+  ecosystems:
+  - package-ecosystem: github-actions
+    commit-message:
+      prefix: 'deps(actions):'
+  - package-ecosystem: npm
+    versioning-strategy: widen
+    ignore:
+    - dependency-name: typescript
+      update-types:
+      - version-update:semver-major
+    - dependency-name: '@types/node'
+      update-types:
+      - version-update:semver-major
+    commit-message:
+      prefix: 'deps(npm):'
